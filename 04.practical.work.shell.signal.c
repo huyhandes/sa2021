@@ -1,11 +1,16 @@
-#include<stdio.h>
-#include<signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/wait.h>
 
+int childpid;
 void handler(int signal_num) {
     printf("Signal %d => ", signal_num);
     switch (signal_num) {
         case SIGTSTP:
             printf("pause\n");
+            kill(childpid,SIGTSTP);
             break;
         case SIGINT:
         case SIGTERM:
@@ -14,26 +19,26 @@ void handler(int signal_num) {
             break;
     }
 }
-void random_run(){
-    for(int i = 0; i < 1e10; i++);
-}
-int main(void) {
+
+int main() {
     // ctrl z
     signal(SIGTSTP, handler);
-    
-    while(1){
+    signal(SIGINT, handler);
+    signal(SIGTERM, handler);
+	char cmd[1000];
+	while(1){
 		printf("$ ");
-		//int argc = getArg();
+		fgets(cmd, sizeof(cmd), stdin);
+		if (strcmp(cmd,"/q\n") == 0) break;
 		int pid = fork();
 		if(pid == 0) { // this is child who execute shell
-        // ctrl c or killed
-            signal(SIGTSTP, handler);
-            random_run();
+			char* args[] = {"/bin/bash", "-c", cmd, NULL};
+			execvp(args[0], args);
 		} 
 		else { // this is parent who wait for next comment
-            kill(&pid,SIGTSTP);
+			childpid = pid;
 			wait(&pid);
 		}
 	}
-    return 0;
+	return 0;
 }
